@@ -1,7 +1,9 @@
 # -*- coding:utf-8 -*-
+import atexit
 import os
 import sys
 import traceback
+from signal import signal, SIGTERM, SIGQUIT, SIGINT
 
 from app import Application
 
@@ -75,5 +77,40 @@ class AppManage(object):
             pass
 
 
+def func(n, m):
+    # db_path = settings.get("db_path")
+    # projects = TinyDB(db_path).table('projects')
+    # projects.update({"pid": 0}, where('pid') > 0)
+
+    from psutil import Process
+    p = Process()
+    print p.name()
+
+    # p.kill()
+    # p.terminate()
+
+    sys.exit(0)
+
+
+def term_sig_handler(signum, frame):
+    print 'catched singal: %d' % signum, frame
+    from psutil import Process
+    p = Process()
+    print p.name()
+    sys.exit()
+
+
+@atexit.register
+def atexit_fun():
+    print 'i am exit, stack track:'
+
+    exc_type, exc_value, exc_tb = sys.exc_info()
+    traceback.print_exception(exc_type, exc_value, exc_tb)
+
+
 if __name__ == "__main__":
+    signal(SIGTERM, term_sig_handler)
+    signal(SIGINT, term_sig_handler)
+    signal(SIGQUIT, func)
+
     AppManage().start()

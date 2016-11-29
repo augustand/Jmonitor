@@ -1,0 +1,37 @@
+{
+  "_default": {},
+  "projects": {
+    "1": {
+      "program": "Jmonitor",
+      "numprocs": 4,
+      "command": "ttyd -p 12345 bash",
+      "numprocs_start": 12345,
+      "process_name": "Jmonitor_0",
+      "pid": 71889
+    },
+    "2": {
+      "program": "Jmonitor",
+      "numprocs": 4,
+      "command": "ttyd -p 12346 bash",
+      "numprocs_start": 12345,
+      "process_name": "Jmonitor_1",
+      "pid": 71890
+    },
+    "3": {
+      "program": "Jmonitor",
+      "numprocs": 4,
+      "command": "ttyd -p 12347 bash",
+      "numprocs_start": 12345,
+      "process_name": "Jmonitor_2",
+      "pid": 71891
+    },
+    "4": {
+      "program": "Jmonitor",
+      "numprocs": 4,
+      "command": "ttyd -p 12348 bash",
+      "numprocs_start": 12345,
+      "process_name": "Jmonitor_3",
+      "pid": 71892
+    }
+  }
+}
