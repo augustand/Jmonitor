@@ -1,7 +1,6 @@
 # -*- coding:utf-8 -*-
 import json
-import os
-import sys
+import multiprocessing
 from subprocess import PIPE
 
 import psutil
@@ -12,6 +11,7 @@ from tornado import web
 from tornado.ioloop import PeriodicCallback
 
 from config import settings
+from mesc import daemonize1
 
 
 class MainHandler(web.RequestHandler):
@@ -44,8 +44,16 @@ class ProjectsHandler(web.RequestHandler):
         numprocs_start = int(body.get("numprocs_start"))
 
         db_path = settings.get("db_path")
-        projects = TinyDB(db_path).table('projects')
+        templates = TinyDB(db_path).table('templates')
+        templates.insert({
+            "program": program,
+            "process_name": process_name,
+            "command": command,
+            "numprocs": numprocs,
+            "numprocs_start": numprocs_start
+        })
 
+        projects = TinyDB(db_path).table('projects')
         for i in range(numprocs):
             projects.insert({
                 "program": program,
@@ -73,56 +81,8 @@ class ProjectHandler(web.RequestHandler):
             else:
                 method(name)
 
-    def daemonize(self):
-        try:
-            # this process would create a parent and a child
-            pid = os.fork()
-            if pid > 0:
-                # take care of the first parent
-                sys.exit(0)
-        except OSError, err:
-            sys.stderr.write("Fork 1 has failed --> %d--[%s]\n" % (err.errno,
-                                                                   err.strerror))
-            sys.exit(1)
-
-        # change to root
-        os.chdir('/')
-        # detach from terminal
-        os.setsid()
-        # file to be created ?
-        os.umask(0)
-        try:
-            # this process creates a parent and a child
-            pid = os.fork()
-            if pid > 0:
-                print "Daemon process pid %d" % pid
-                # bam
-                sys.exit(0)
-        except OSError, err:
-            sys.stderr.write("Fork 2 has failed --> %d--[%s]\n" % (err.errno,
-                                                                   err.strerror))
-            sys.exit(1)
-
-        sys.stdout.flush()
-        sys.stderr.flush()
-
     def start(self, program=None):
-
-        self.daemonize()
-        db_path = settings.get("db_path")
-        projects = TinyDB(db_path).table('projects')
-
-        for p in projects.search(where("program") == program):
-            pid = p.get("pid", None)
-            if pid: continue
-
-            command = p.get("command")
-            pp = psutil.Popen(command, stdout=PIPE, shell=True)
-            process_name = p.get("process_name")
-            projects.update({"pid": pp.pid}, where('process_name') == process_name)
-
-    def _start(self, program):
-        self.daemonize()
+        daemonize1()
         db_path = settings.get("db_path")
         projects = TinyDB(db_path).table('projects')
 
@@ -166,12 +126,32 @@ class ProjectHandler(web.RequestHandler):
 
 class Task(PeriodicCallback):
     def __init__(self, application, callback_time):
-        super(Task, self).__init__(self.post, callback_time)
+        super(Task, self).__init__(self.callback, callback_time)
         self.application = application
 
     @gen.coroutine
-    def post(self):
-        print("Hello Tornado")
+    def callback(self):
+        p = multiprocessing.Process(target=self.__callback)
+        p.daemon = True
+        p.start()
+        p.join()
+
+    def __callback(self):
+        print "Task"
+        db_path = settings.get("db_path")
+        projects = TinyDB(db_path).table('projects')
+
+        for p in projects.all():
+            pid = p.get("pid", None)
+
+            try:
+                if pid and psutil.Process(pid).is_running():
+                    continue
+                else:
+                    raise psutil.NoSuchProcess(pid)
+            except psutil.NoSuchProcess:
+                pp = psutil.Popen(p.get("command"), stdout=PIPE, shell=True)
+                projects.update({"pid": pp.pid}, where('process_name') == p.get("process_name"))
 
 
 if __name__ == '__main__':

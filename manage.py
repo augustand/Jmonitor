@@ -1,11 +1,12 @@
 # -*- coding:utf-8 -*-
 import atexit
-import os
 import sys
 import traceback
 from signal import signal, SIGTERM, SIGQUIT, SIGINT
 
 from app import Application
+from handlers import Task
+from mesc import daemonize
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -23,47 +24,14 @@ class AppManage(object):
     def __init__(self):
         parse_command_line()
 
-    def daemonize(self):
-        try:
-            # this process would create a parent and a child
-            pid = os.fork()
-            if pid > 0:
-                # take care of the first parent
-                sys.exit(0)
-        except OSError, err:
-            sys.stderr.write("Fork 1 has failed --> %d--[%s]\n" % (err.errno,
-                                                                   err.strerror))
-            sys.exit(1)
-
-        # change to root
-        os.chdir('/')
-        # detach from terminal
-        os.setsid()
-        # file to be created ?
-        os.umask(0)
-        try:
-            # this process creates a parent and a child
-            pid = os.fork()
-            if pid > 0:
-                print "Daemon process pid %d" % pid
-                # bam
-                sys.exit(0)
-        except OSError, err:
-            sys.stderr.write("Fork 2 has failed --> %d--[%s]\n" % (err.errno,
-                                                                   err.strerror))
-            sys.exit(1)
-
-        sys.stdout.flush()
-        sys.stderr.flush()
-
     def start(self):
-        if options.daemon:
-            self.daemonize()
+        if options.daemon: daemonize()
 
         print "http://{}:{}".format("localhost", options.port)
         app = Application({
             "debug": options.debug
         })
+        Task(app, 1000 * 5).start()
         HTTPServer(app).listen(options.port)
 
         loop = IOLoop.instance()
@@ -77,40 +45,22 @@ class AppManage(object):
             pass
 
 
-def func(n, m):
-    # db_path = settings.get("db_path")
-    # projects = TinyDB(db_path).table('projects')
-    # projects.update({"pid": 0}, where('pid') > 0)
-
-    from psutil import Process
-    p = Process()
-    print p.name()
-
-    # p.kill()
-    # p.terminate()
-
-    sys.exit(0)
-
-
 def term_sig_handler(signum, frame):
     print 'catched singal: %d' % signum, frame
-    from psutil import Process
-    p = Process()
-    print p.name()
     sys.exit()
 
 
 @atexit.register
 def atexit_fun():
     print 'i am exit, stack track:'
-
     exc_type, exc_value, exc_tb = sys.exc_info()
     traceback.print_exception(exc_type, exc_value, exc_tb)
 
 
 if __name__ == "__main__":
+    parse_command_line()
     signal(SIGTERM, term_sig_handler)
     signal(SIGINT, term_sig_handler)
-    signal(SIGQUIT, func)
+    signal(SIGQUIT, term_sig_handler)
 
     AppManage().start()
