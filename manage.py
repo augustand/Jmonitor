@@ -31,7 +31,9 @@ class AppManage(object):
         app = Application({
             "debug": options.debug
         })
-        Task(app, 1000 * 5).start()
+
+        app.task = Task(app, 1000 * 5)
+
         HTTPServer(app).listen(options.port)
 
         loop = IOLoop.instance()
