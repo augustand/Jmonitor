@@ -3,14 +3,16 @@ import json
 import multiprocessing
 from subprocess import PIPE
 
+import etcd
 import psutil
 from tinydb import TinyDB
 from tinydb import where
 from tornado import gen
 from tornado import web
-from tornado.ioloop import PeriodicCallback
 
 from config import settings
+from mesc import get_host_ip
+from tasks import ProjectTask
 
 
 class MainHandler(web.RequestHandler):
@@ -62,8 +64,17 @@ class ProjectsHandler(web.RequestHandler):
                 "numprocs_start": numprocs_start
             })
 
+        # 把项目实例的变化添加到etcd中
+        host, port = self.application.settings.get("etcd").split(":")
+        client = etcd.Client(host=host, port=port)
+        for i in range(numprocs):
+            client.write(
+                "/projects/{0}/{1}".format(program, process_name.format(process_num=i)),
+                "{0}:{1}".format(get_host_ip(), i + numprocs_start)
+            )
+
         # 添加一个定时任务
-        self.application.task[program] = Task(self.application, 1000 * 5)
+        self.application.task[program] = ProjectTask(self.application, 1000 * 5)
 
         self.write(json.dumps(projects.all()))
 
@@ -189,6 +200,20 @@ class ProjectHandler(web.RequestHandler):
                 "numprocs_start": numprocs_start
             })
 
+        # 把项目实例的变化反映到etcd中
+        host, port = self.application.settings.get("etcd").split(":")
+        client = etcd.Client(host=host, port=port)
+
+        # 删除
+        client.delete('/projects', recursive=True)
+
+        # 添加
+        for i in range(numprocs):
+            client.write(
+                "/projects/{0}/{1}".format(program, process_name.format(process_num=i)),
+                "{0}:{1}".format(get_host_ip(), i + numprocs_start)
+            )
+
         p = multiprocessing.Process(target=self._start, args=(program,))
         p.daemon = True
         p.start()
@@ -210,37 +235,10 @@ class ProjectHandler(web.RequestHandler):
 
         del self.application.task[program]
 
-
-class Task(PeriodicCallback):
-    def __init__(self, program, application, callback_time):
-        super(Task, self).__init__(self.callback, callback_time)
-        self.application = application
-        self.program = program
-
-    @gen.coroutine
-    def callback(self):
-        p = multiprocessing.Process(target=self.__callback, args=(self.program,))
-        p.daemon = True
-        p.start()
-        p.join()
-
-    def __callback(self, program):
-        print "Task:{0}".format(program)
-        db_path = settings.get("db_path")
-        projects = TinyDB(db_path).table('projects')
-
-        for p in projects.search(where('process_name') == program):
-            pid = p.get("pid", None)
-
-            try:
-                if pid and psutil.Process(pid).is_running():
-                    continue
-                else:
-                    raise psutil.NoSuchProcess(pid)
-            except psutil.NoSuchProcess as e:
-                pp = psutil.Popen(p.get("command"), stdout=PIPE, shell=True)
-                projects.update({"pid": pp.pid}, where('process_name') == p.get("process_name"))
-                print "重新启动{0}:{1}".format(pp.name(), pp.pid)
+        # 把项目实例从etcd中删除
+        host, port = self.application.settings.get("etcd").split(":")
+        client = etcd.Client(host=host, port=port)
+        client.delete('/projects', recursive=True)
 
 
 if __name__ == '__main__':

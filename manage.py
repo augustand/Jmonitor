@@ -17,6 +17,7 @@ from tornado.options import define, parse_command_line, options
 define("port", default=6752, help="run on the given port", type=int)
 define("debug", default=True, help="run on the given debug", type=bool)
 define("daemon", default=False, help="run on the given daemon", type=bool)
+define("etcd", default='10.1.51.133:2379', help="run on the given etcd", type=str)
 
 
 class AppManage(object):
@@ -28,7 +29,8 @@ class AppManage(object):
 
         print "http://{}:{}".format("localhost", options.port)
         app = Application({
-            "debug": options.debug
+            "debug": options.debug,
+            "etcd": options.etcd
         })
 
         HTTPServer(app).listen(options.port)

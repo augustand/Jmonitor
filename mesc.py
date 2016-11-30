@@ -1,5 +1,6 @@
 # -*- coding:utf-8 -*-
 import os
+import socket
 import sys
 
 
@@ -38,7 +39,7 @@ def daemonize():
 
 
 def daemonize1(stdout='/dev/null', stderr=None, stdin='/dev/null',
-              pidfile=None, startmsg = 'started with pid %s' ):
+               pidfile=None, startmsg='started with pid %s'):
     '''''
          This forks the current process into a daemon.
          The stdin, stdout, and stderr arguments are file names that
@@ -55,7 +56,7 @@ def daemonize1(stdout='/dev/null', stderr=None, stdin='/dev/null',
     # Do first fork.
     try:
         pid = os.fork()
-        if pid > 0: sys.exit(0) # Exit first parent.
+        if pid > 0: sys.exit(0)  # Exit first parent.
     except OSError, e:
         sys.stderr.write("fork #1 failed: (%d) %s\n" % (e.errno, e.strerror))
         sys.exit(1)
@@ -66,7 +67,7 @@ def daemonize1(stdout='/dev/null', stderr=None, stdin='/dev/null',
     # Do second fork.
     try:
         pid = os.fork()
-        if pid > 0: sys.exit(0) # Exit second parent.
+        if pid > 0: sys.exit(0)  # Exit second parent.
     except OSError, e:
         sys.stderr.write("fork #2 failed: (%d) %s\n" % (e.errno, e.strerror))
         sys.exit(1)
@@ -74,12 +75,21 @@ def daemonize1(stdout='/dev/null', stderr=None, stdin='/dev/null',
     if not stderr: stderr = stdout
     si = file(stdin, 'r')
     so = file(stdout, 'a+')
-    se = file(stderr, 'a+', 0)  #unbuffered
+    se = file(stderr, 'a+', 0)  # unbuffered
     pid = str(os.getpid())
     sys.stderr.write("\n%s\n" % startmsg % pid)
     sys.stderr.flush()
-    if pidfile: file(pidfile,'w+').write("%s\n" % pid)
+    if pidfile: file(pidfile, 'w+').write("%s\n" % pid)
     # Redirect standard file descriptors.
     os.dup2(si.fileno(), sys.stdin.fileno())
     os.dup2(so.fileno(), sys.stdout.fileno())
     os.dup2(se.fileno(), sys.stderr.fileno())
+
+
+def get_host_ip():
+    myname = socket.getfqdn(socket.gethostname())
+    return socket.gethostbyname(myname)
+
+
+if __name__ == '__main__':
+    print get_host_ip()  # 主机ip地址
