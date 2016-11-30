@@ -62,6 +62,9 @@ class ProjectsHandler(web.RequestHandler):
                 "numprocs_start": numprocs_start
             })
 
+        # 添加一个定时任务
+        self.application.task[program] = Task(self.application, 1000 * 5)
+
         self.write(json.dumps(projects.all()))
 
 
@@ -87,8 +90,8 @@ class ProjectHandler(web.RequestHandler):
         if not pts:
             self.write("program:{0}不存在".format(program))
 
-        if not self.application.task.is_running():
-            self.application.task.start()
+        task = self.application.task.get(program, None)
+        if task and not task.is_running(): task.start()
 
         p = multiprocessing.Process(target=self._start, args=(program,))
         p.daemon = True
@@ -115,8 +118,8 @@ class ProjectHandler(web.RequestHandler):
         if not pts:
             self.write("program:{0}不存在".format(program))
 
-        if self.application.task.is_running():
-            self.application.task.stop()
+        task = self.application.task.get(program, None)
+        if task and task.is_running(): task.stop()
 
         p = multiprocessing.Process(target=self._stop, args=(program,))
         p.daemon = True
@@ -128,7 +131,6 @@ class ProjectHandler(web.RequestHandler):
         projects = TinyDB(db_path).table('projects')
         for p in projects.search(where("program") == program):
             pid = p.get("pid", None)
-
             try:
                 if pid and psutil.Process(pid).is_running():
                     _p = psutil.Process(pid)
@@ -193,8 +195,8 @@ class ProjectHandler(web.RequestHandler):
         p.join()
 
     def delete(self, program=None):
-        if self.application.task.is_running():
-            self.application.task.stop()
+        task = self.application.task.get(program, None)
+        if task and task.is_running(): task.stop()
 
         self._stop(program)
 
@@ -206,25 +208,28 @@ class ProjectHandler(web.RequestHandler):
         project = TinyDB(db_path).table('projects')
         project.remove(eids=[i.eid for i in project.search(where('program') == program)])
 
+        del self.application.task[program]
+
 
 class Task(PeriodicCallback):
-    def __init__(self, application, callback_time):
+    def __init__(self, program, application, callback_time):
         super(Task, self).__init__(self.callback, callback_time)
         self.application = application
+        self.program = program
 
     @gen.coroutine
     def callback(self):
-        p = multiprocessing.Process(target=self.__callback)
+        p = multiprocessing.Process(target=self.__callback, args=(self.program,))
         p.daemon = True
         p.start()
         p.join()
 
-    def __callback(self):
-        print "Task"
+    def __callback(self, program):
+        print "Task:{0}".format(program)
         db_path = settings.get("db_path")
         projects = TinyDB(db_path).table('projects')
 
-        for p in projects.all():
+        for p in projects.search(where('process_name') == program):
             pid = p.get("pid", None)
 
             try:

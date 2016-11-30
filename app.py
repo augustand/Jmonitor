@@ -16,5 +16,8 @@ class Application(web.Application):
             # (r"/v1/log/(?P<id>.*)", Main1Handler),
         ]
 
+        # 定时任务
+        self.task = {}
+
         settings.update(config)
         super(Application, self).__init__(handlers, **settings)

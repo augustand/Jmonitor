@@ -5,7 +5,6 @@ import traceback
 from signal import signal, SIGTERM, SIGQUIT, SIGINT
 
 from app import Application
-from handlers import Task
 from mesc import daemonize
 
 reload(sys)
@@ -31,8 +30,6 @@ class AppManage(object):
         app = Application({
             "debug": options.debug
         })
-
-        app.task = Task(app, 1000 * 5)
 
         HTTPServer(app).listen(options.port)
 
