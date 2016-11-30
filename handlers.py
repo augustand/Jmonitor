@@ -187,7 +187,10 @@ class ProjectHandler(web.RequestHandler):
                 "numprocs_start": numprocs_start
             })
 
-        self._start(program)
+        p = multiprocessing.Process(target=self._start, args=(program,))
+        p.daemon = True
+        p.start()
+        p.join()
 
     def delete(self, program=None):
         if self.application.task.is_running():
