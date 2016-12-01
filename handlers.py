@@ -46,6 +46,11 @@ class ProjectsHandler(web.RequestHandler):
 
         db_path = settings.get("db_path")
         templates = TinyDB(db_path).table('templates')
+        pts = templates.search(where('program') == program)
+        if pts:
+            self.write("program:{0}已经存在".format(program))
+            return
+
         templates.insert({
             "program": program,
             "process_name": process_name,
@@ -66,7 +71,7 @@ class ProjectsHandler(web.RequestHandler):
 
         # 把项目实例的变化添加到etcd中
         host, port = self.application.settings.get("etcd").split(":")
-        client = etcd.Client(host=host, port=port)
+        client = etcd.Client(host=host, port=int(port))
         for i in range(numprocs):
             client.write(
                 "/projects/{0}/{1}".format(program, process_name.format(process_num=i)),
@@ -74,7 +79,7 @@ class ProjectsHandler(web.RequestHandler):
             )
 
         # 添加一个定时任务
-        self.application.task[program] = ProjectTask(self.application, 1000 * 5)
+        self.application.task[program] = ProjectTask(program, self.application, 1000 * 5)
 
         self.write(json.dumps(projects.all()))
 
@@ -100,6 +105,7 @@ class ProjectHandler(web.RequestHandler):
         pts = templates.search(where("program") == program)
         if not pts:
             self.write("program:{0}不存在".format(program))
+            return
 
         task = self.application.task.get(program, None)
         if task and not task.is_running(): task.start()
@@ -128,6 +134,7 @@ class ProjectHandler(web.RequestHandler):
         pts = templates.search(where("program") == program)
         if not pts:
             self.write("program:{0}不存在".format(program))
+            return
 
         task = self.application.task.get(program, None)
         if task and task.is_running(): task.stop()
@@ -159,6 +166,7 @@ class ProjectHandler(web.RequestHandler):
         pts = templates.search(where("program") == program)
         if not pts:
             self.write("program:{0}不存在".format(program))
+            return
 
         p = multiprocessing.Process(target=self._restart, args=(program,))
         p.daemon = True
@@ -202,7 +210,7 @@ class ProjectHandler(web.RequestHandler):
 
         # 把项目实例的变化反映到etcd中
         host, port = self.application.settings.get("etcd").split(":")
-        client = etcd.Client(host=host, port=port)
+        client = etcd.Client(host=host, port=int(port))
 
         # 删除
         client.delete('/projects', recursive=True)
@@ -220,6 +228,13 @@ class ProjectHandler(web.RequestHandler):
         p.join()
 
     def delete(self, program=None):
+        db_path = settings.get("db_path")
+        templates = TinyDB(db_path).table('templates')
+        pts = templates.search(where('program') == program)
+        if not pts:
+            self.write("program:{0}不存在".format(program))
+            return
+
         task = self.application.task.get(program, None)
         if task and task.is_running(): task.stop()
 
@@ -237,7 +252,7 @@ class ProjectHandler(web.RequestHandler):
 
         # 把项目实例从etcd中删除
         host, port = self.application.settings.get("etcd").split(":")
-        client = etcd.Client(host=host, port=port)
+        client = etcd.Client(host=host, port=int(port))
         client.delete('/projects', recursive=True)
 
 
