@@ -29,6 +29,17 @@ class MainHandler(web.RequestHandler):
         print(i)
 
 
+class TestHandler(web.RequestHandler):
+    def get(self, *args):
+        print args
+        self.write("ok")
+
+
+class ProjectEventsHandler(web.RequestHandler):
+    def get(self, *args):
+        print args
+        self.write("ok")
+
 class ProjectsHandler(web.RequestHandler):
     def get(self):
         db_path = settings.get("db_path")

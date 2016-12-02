@@ -3,7 +3,7 @@
 from tornado import web
 
 from config import settings
-from handlers import MainHandler, ProjectsHandler, ProjectHandler
+from handlers import MainHandler, ProjectsHandler, ProjectHandler, TestHandler
 
 
 class Application(web.Application):
@@ -12,6 +12,7 @@ class Application(web.Application):
             (r"/", MainHandler),
             (r"/api/projects", ProjectsHandler),
             (r"/api/project/(?P<program>.*)", ProjectHandler),
+            (r"/api/project/events/(?P<name>.*)", TestHandler),
             # (r"/id/(?P<id>.*)", Main1Handler),
             # (r"/v1/log/(?P<id>.*)", Main1Handler),
         ]
