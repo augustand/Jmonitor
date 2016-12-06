@@ -91,5 +91,25 @@ def get_host_ip():
     return socket.gethostbyname(myname)
 
 
+def gen_fields(name, fields):
+    if not fields:
+        return name
+
+    return ",".join(["{0}.{1}".format(name, p) for p in fields])
+
+
+def singleton(cls, *args, **kw):
+    instances = {}
+
+    def _singleton():
+        if cls not in instances:
+            instances[cls] = cls(*args, **kw)
+        return instances[cls]
+
+    return _singleton
+
+
 if __name__ == '__main__':
     print get_host_ip()  # 主机ip地址
+
+    # print gen_fields("ss", ["dd", "dffff"])

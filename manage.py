@@ -2,38 +2,36 @@
 import atexit
 import sys
 import traceback
-from signal import signal, SIGTERM, SIGQUIT, SIGINT
+from signal import signal, SIGTERM, SIGINT, SIGQUIT
 
-from app import Application
-from mesc import daemonize
+from tornado.httpserver import HTTPServer
+from tornado.ioloop import IOLoop
+
+from jmonitor import JmonitorApplication
+from services import singleton, daemonize
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
-from tornado.httpserver import HTTPServer
-from tornado.ioloop import IOLoop
 from tornado.options import define, parse_command_line, options
 
 define("port", default=6752, help="run on the given port", type=int)
 define("debug", default=True, help="run on the given debug", type=bool)
 define("daemon", default=False, help="run on the given daemon", type=bool)
-define("etcd", default='10.1.51.133:2379', help="run on the given etcd", type=str)
 
 
-class AppManage(object):
+@singleton
+class AppManager(object):
     def __init__(self):
-        parse_command_line()
+        self.app = None
 
-    def start(self):
-        if options.daemon: daemonize()
+    def start(self, option):
 
-        print "http://{}:{}".format("localhost", options.port)
-        app = Application({
-            "debug": options.debug,
-            "etcd": options.etcd
+        self.app = JmonitorApplication({
+            "debug": option.debug
         })
 
-        HTTPServer(app).listen(options.port)
+        HTTPServer(self.app).listen(option.port)
 
         loop = IOLoop.instance()
         try:
@@ -44,6 +42,9 @@ class AppManage(object):
             traceback.format_exc()
         finally:
             pass
+
+    def get_app(self):
+        return self.app
 
 
 def term_sig_handler(signum, frame):
@@ -60,8 +61,13 @@ def atexit_fun():
 
 if __name__ == "__main__":
     parse_command_line()
+
     signal(SIGTERM, term_sig_handler)
     signal(SIGINT, term_sig_handler)
     signal(SIGQUIT, term_sig_handler)
 
-    AppManage().start()
+    if options.daemon:
+        daemonize()
+
+    print "http://{}:{}".format("localhost", options.port)
+    AppManager().start(options)
