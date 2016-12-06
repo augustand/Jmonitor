@@ -7,6 +7,7 @@ from pony.orm import db_session, select
 
 from jmonitor.models import Template, Project
 from services import daemonize
+from services.tasks import ProjectTask
 
 
 def do_actions(programs, actions, app):
@@ -37,15 +38,19 @@ def start(programs, app):
                 msg="program:{0}不存在".format(program)
             )
 
+        # 添加一个定时任务
         task = app.tasks.get(program, None)
         if task and not task.is_running():
-            task.start()
+            task.start_at_once()
+        else:
+            app.tasks[program] = ProjectTask(program, 1000 * 5)
+            app.tasks[program].start_at_once()
 
 
-        p = multiprocessing.Process(target=_start, args=(program,))
-        p.daemon = True
-        p.start()
-        p.join()
+        # p = multiprocessing.Process(target=_start, args=(program,))
+        # p.daemon = True
+        # p.start()
+        # p.join()
 
     return dict(
         status="ok"
@@ -74,12 +79,12 @@ def stop(programs, app):
 
         task = app.tasks.get(program, None)
         if task and task.is_running():
-            task.stop()
+            task.stop_at_once()
 
-        p = multiprocessing.Process(target=_stop, args=(program,))
-        p.daemon = True
-        p.start()
-        p.join()
+        # p = multiprocessing.Process(target=_stop, args=(program,))
+        # p.daemon = True
+        # p.start()
+        # p.join()
 
     return dict(
         status="ok"

@@ -23,6 +23,26 @@ class ProjectTask(PeriodicCallback):
         p.start()
         p.join()
 
+    def start_at_once(self):
+        self.callback_time = 1
+        self.start()
+        self.callback_time = 1000 * 5
+
+    def stop_at_once(self):
+        self.stop()
+
+        for p in select(p for p in Project if p.program == self.program)[:]:
+            try:
+                if p.pid and psutil.Process(p.pid).is_running():
+                    _p = psutil.Process(p.pid)
+                    _p.kill()
+                    _p.wait()
+                    raise psutil.NoSuchProcess(p.pid)
+                else:
+                    raise psutil.NoSuchProcess(p.pid)
+            except psutil.NoSuchProcess:
+                Project[p.id].set(pid=0)
+
     def __callback(self, program):
 
         daemonize()

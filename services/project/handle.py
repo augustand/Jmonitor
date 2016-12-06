@@ -68,6 +68,7 @@ class ProjectHandler(web.RequestHandler):
         # program = kwargs.get("program")
         body = json.loads(self.request.body)
         self.write(logic.update_project(
+            self.application,
             **body
         ))
 
