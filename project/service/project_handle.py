@@ -130,29 +130,31 @@ class ProjectHandle(object):
                 ))
 
     def do_actions(self, data):
-        from project_action import start, stop, restart
-
         data = json.loads(data)
         programs = data.get("programs", [])
         actions = data.get("actions", [])
-
         if __debug__:
+            print data
             print programs, actions
 
+        from project_action import start, stop, restart
         for action in actions:
-            if action == "start":
-
-                res = start(programs)
-            elif action == "stop":
-                res = stop(programs)
-            elif action == "restart":
-                res = restart(programs)
+            print action
+            if action == u"start":
+                start(programs)
+            elif action == u"stop":
+                stop(programs)
+            elif action == u"restart":
+                restart(programs)
             else:
                 return json.dumps(dict(
-                    status='fail',
+                    status=u'fail',
                     msg=u'命令不正确'
                 ))
-            return json.dumps(res)
+        return json.dumps(dict(
+            status='ok',
+            msg=action
+        ))
 
 
 if __name__ == '__main__':

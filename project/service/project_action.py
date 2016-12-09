@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
 
-from apps.project.db.model import Template
 from pony.orm import db_session
 
+from project.db.model import Template
 from project.service.project_task import ProjectTask
 
 
@@ -41,8 +41,11 @@ def stop(programs):
 
 @db_session
 def restart(programs):
-    stop(programs)
-    start(programs)
+    if __debug__:
+        print programs
+
+    for program in programs:
+        ProjectTask().restart(program)
 
     return dict(
         status="ok"

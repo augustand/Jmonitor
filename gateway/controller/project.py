@@ -12,12 +12,11 @@ from gateway.settings import protocols
 
 
 class ProjectsHandler(web.RequestHandler):
-    project = make_client(
-        thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
-        port=6000
-    )
-
     def post(self, *args, **kwargs):
+        self.project = make_client(
+            thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+            port=6000
+        )
 
         if __debug__:
             print self.request.body
@@ -28,9 +27,14 @@ class ProjectsHandler(web.RequestHandler):
                 status="fail",
                 msg=u"参数不正确"
             )))
-        self.write(self.project.add_projects(body))
+        self.write(self.project.add_projects(self.request.body))
+        self.project.close()
 
     def delete(self, *args, **kwargs):
+        self.project = make_client(
+            thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+            port=6000
+        )
 
         if __debug__:
             print self.request.body
@@ -39,8 +43,14 @@ class ProjectsHandler(web.RequestHandler):
         self.write(self.project.remove_projects(
             json.dumps(body.get("programs", []))
         ))
+        self.project.close()
 
     def get(self, *args, **kwargs):
+        self.project = make_client(
+            thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+            port=6000
+        )
+
         programs = self.get_argument("programs", "")
         programs = [] if not programs else programs.split(";")
         fields = self.get_argument("fields", [])
@@ -52,41 +62,53 @@ class ProjectsHandler(web.RequestHandler):
             programs=programs,
             fields=fields
         ))))
+        self.project.close()
 
 
 class ProjectsActionHandler(web.RequestHandler):
-    project = make_client(
-        thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
-        port=6000
-    )
-
     def post(self, *args, **kwargs):
+        self.project = make_client(
+            thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+            port=6000
+        )
+
         self.write(self.project.do_actions(json.dumps(dict(
             programs=self.get_argument("programs", []),
             actions=self.get_argument("actions", [])
         ))))
+        self.project.close()
 
 
 class ProjectHandler(web.RequestHandler):
-    project = make_client(
-        thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
-        port=6000
-    )
-
     def put(self, *args, **kwargs):
+        self.project = make_client(
+            thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+            port=6000
+        )
+
         # program = kwargs.get("program")
         body = json.loads(self.request.body)
         self.write(self.project.update_project(
             json.dumps(body)
         ))
+        self.project.close()
 
     def post(self, *args, **kwargs):
+        self.project = make_client(
+            thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+            port=6000
+        )
+
         program = kwargs.get("program", None)
         action = kwargs.get("action", None)
-        actions = self.get_argument("actions", [action, ])
-
-        res = self.project.do_actions(json.dumps(dict(
+        d = json.dumps(dict(
             programs=[program, ],
-            actions=actions
-        )))
-        self.write(json.dumps(res))
+            actions=self.get_argument("actions", [action, ])
+        ))
+
+        if __debug__:
+            print kwargs
+            print d
+
+        self.write(self.project.do_actions(d))
+        self.finish()
