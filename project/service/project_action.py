@@ -1,28 +1,9 @@
 # -*- coding:utf-8 -*-
 
+from apps.project.db.model import Template
 from pony.orm import db_session
 
-from apps.project.db.model import Template
-from apps.project.service.project_task import ProjectTask
-
-
-def do_actions(programs, actions):
-    if __debug__:
-        print programs, actions
-
-    for action in actions:
-        if action == "start":
-            res = start(programs)
-        elif action == "stop":
-            res = stop(programs)
-        elif action == "restart":
-            res = restart(programs)
-        else:
-            return dict(
-                status='fail',
-                msg=u'命令不正确'
-            )
-        return res
+from project.service.project_task import ProjectTask
 
 
 @db_session

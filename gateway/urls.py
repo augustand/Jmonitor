@@ -1,7 +1,7 @@
 # -*- coding:utf-8 -*-
 
 from controller import MainHandler
-from gateway.controller.project import ProjectsHandler, ProjectsActionHandler, ProjectHandler
+from controller.project import ProjectsHandler, ProjectsActionHandler, ProjectHandler
 
 handlers = [
     (r"/", MainHandler),

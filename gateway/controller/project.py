@@ -2,14 +2,21 @@
 
 
 import json
+from os.path import join as pjoin
 
+import thriftpy
+from thriftpy.rpc import make_client
 from tornado import web
 
-from apps.project.service.project import add_projects, get_projects, remove_projects, update_project
-from apps.project.service.project_action import do_actions
+from gateway.settings import protocols
 
 
 class ProjectsHandler(web.RequestHandler):
+    project = make_client(
+        thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+        port=6000
+    )
+
     def post(self, *args, **kwargs):
 
         if __debug__:
@@ -21,9 +28,7 @@ class ProjectsHandler(web.RequestHandler):
                 status="fail",
                 msg=u"参数不正确"
             )))
-        self.write(json.dumps(add_projects(
-            body
-        )))
+        self.write(self.project.add_projects(body))
 
     def delete(self, *args, **kwargs):
 
@@ -31,8 +36,8 @@ class ProjectsHandler(web.RequestHandler):
             print self.request.body
 
         body = json.loads(self.request.body)
-        self.write(remove_projects(
-            body.get("programs", [])
+        self.write(self.project.remove_projects(
+            json.dumps(body.get("programs", []))
         ))
 
     def get(self, *args, **kwargs):
@@ -43,29 +48,36 @@ class ProjectsHandler(web.RequestHandler):
         if __debug__:
             print programs, fields
 
-        self.write(get_projects(**dict(
+        self.write(self.project.get_projects(json.dumps(dict(
             programs=programs,
             fields=fields
-        )))
+        ))))
 
 
 class ProjectsActionHandler(web.RequestHandler):
-    def post(self, *args, **kwargs):
-        programs = self.get_argument("programs", [])
-        actions = self.get_argument("actions", [])
+    project = make_client(
+        thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+        port=6000
+    )
 
-        self.write(json.dumps(do_actions(
-            programs,
-            actions
-        )))
+    def post(self, *args, **kwargs):
+        self.write(self.project.do_actions(json.dumps(dict(
+            programs=self.get_argument("programs", []),
+            actions=self.get_argument("actions", [])
+        ))))
 
 
 class ProjectHandler(web.RequestHandler):
+    project = make_client(
+        thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+        port=6000
+    )
+
     def put(self, *args, **kwargs):
         # program = kwargs.get("program")
         body = json.loads(self.request.body)
-        self.write(update_project(
-            **body
+        self.write(self.project.update_project(
+            json.dumps(body)
         ))
 
     def post(self, *args, **kwargs):
@@ -73,5 +85,8 @@ class ProjectHandler(web.RequestHandler):
         action = kwargs.get("action", None)
         actions = self.get_argument("actions", [action, ])
 
-        res = do_actions([program, ], actions)
+        res = self.project.do_actions(json.dumps(dict(
+            programs=[program, ],
+            actions=actions
+        )))
         self.write(json.dumps(res))

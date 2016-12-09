@@ -1,23 +1,20 @@
 # -*- coding:utf-8 -*-
-import atexit
+
 import sys
+
+sys.path.append('../')
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
+import argparse
+import atexit
 import traceback
 from signal import signal, SIGTERM, SIGINT, SIGQUIT
 
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 
-from gateway import JmonitorApplication
 from misc import singleton, daemonize
-
-reload(sys)
-sys.setdefaultencoding('utf-8')
-
-from tornado.options import define, parse_command_line, options
-
-define("port", default=6752, help="run on the given port", type=int)
-define("debug", default=True, help="run on the given debug", type=bool)
-define("daemon", default=False, help="run on the given daemon", type=bool)
 
 
 @singleton
@@ -27,12 +24,15 @@ class AppManager(object):
 
     def start(self, option):
 
+        if __debug__:
+            print option
+
+        from gateway import JmonitorApplication
         self.app = JmonitorApplication({
             "debug": option.debug
         })
 
         HTTPServer(self.app).listen(option.port)
-
         loop = IOLoop.instance()
         try:
             loop.start()
@@ -54,20 +54,25 @@ def term_sig_handler(signum, frame):
 
 @atexit.register
 def atexit_fun():
-    print 'i am exit, stack track:'
     exc_type, exc_value, exc_tb = sys.exc_info()
     traceback.print_exception(exc_type, exc_value, exc_tb)
 
 
 if __name__ == "__main__":
-    parse_command_line()
 
     signal(SIGTERM, term_sig_handler)
     signal(SIGINT, term_sig_handler)
     signal(SIGQUIT, term_sig_handler)
 
-    if options.daemon:
+    parser = argparse.ArgumentParser(description='gateway service')
+    parser.add_argument('-p', action="store", default=6752, type=int, dest='port', help='port default 6752')
+    parser.add_argument('-debug', action="store", default=True, type=bool, dest='debug', help='debug default true')
+    parser.add_argument('-daemon', action="store", default=False, type=bool, dest='daemon', help='daemon default false')
+    p = parser.parse_args()
+
+    if p.daemon:
         daemonize()
 
-    print "http://{}:{}".format("localhost", options.port)
-    AppManager().start(options)
+    print "http://{}:{}".format("localhost", p.port)
+
+    AppManager().start(p)

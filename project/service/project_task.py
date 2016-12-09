@@ -7,8 +7,8 @@ import psutil
 from pony.orm import db_session, commit
 from pony.orm.serialization import to_dict
 
-from apps.project.db.model import Project, Template
 from misc import singleton, daemonize
+from project.db.model import Project, Template
 
 
 class Task(object):
