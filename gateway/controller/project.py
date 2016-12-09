@@ -5,8 +5,8 @@ import json
 
 from tornado import web
 
-from services.project import logic
-from services.project.action import do_actions
+from apps.project.service.project import add_projects, get_projects, remove_projects, update_project
+from apps.project.service.project_action import do_actions
 
 
 class ProjectsHandler(web.RequestHandler):
@@ -21,9 +21,8 @@ class ProjectsHandler(web.RequestHandler):
                 status="fail",
                 msg=u"参数不正确"
             )))
-        self.write(json.dumps(logic.add_projects(
-            body,
-            self.application
+        self.write(json.dumps(add_projects(
+            body
         )))
 
     def delete(self, *args, **kwargs):
@@ -32,9 +31,8 @@ class ProjectsHandler(web.RequestHandler):
             print self.request.body
 
         body = json.loads(self.request.body)
-        self.write(logic.remove_projects(
-            body.get("programs", []),
-            self.application
+        self.write(remove_projects(
+            body.get("programs", [])
         ))
 
     def get(self, *args, **kwargs):
@@ -45,7 +43,7 @@ class ProjectsHandler(web.RequestHandler):
         if __debug__:
             print programs, fields
 
-        self.write(logic.get_projects(**dict(
+        self.write(get_projects(**dict(
             programs=programs,
             fields=fields
         )))
@@ -58,8 +56,7 @@ class ProjectsActionHandler(web.RequestHandler):
 
         self.write(json.dumps(do_actions(
             programs,
-            actions,
-            self.application
+            actions
         )))
 
 
@@ -67,8 +64,7 @@ class ProjectHandler(web.RequestHandler):
     def put(self, *args, **kwargs):
         # program = kwargs.get("program")
         body = json.loads(self.request.body)
-        self.write(logic.update_project(
-            self.application,
+        self.write(update_project(
             **body
         ))
 
@@ -77,5 +73,5 @@ class ProjectHandler(web.RequestHandler):
         action = kwargs.get("action", None)
         actions = self.get_argument("actions", [action, ])
 
-        res = do_actions([program, ], actions, self.application)
+        res = do_actions([program, ], actions)
         self.write(json.dumps(res))

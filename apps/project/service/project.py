@@ -3,13 +3,12 @@
 from pony.orm import db_session, delete, select
 from pony.orm.serialization import to_dict
 
-from jmonitor.models import Template, Project
-from services import gen_fields
-from services.tasks import ProjectTask
+from apps.project.db.model import Template, Project
+from misc import gen_fields
 
 
 @db_session
-def add_projects(projects, app):
+def add_projects(projects):
     for project in projects:
         program = project.get("program")
         process_name = project.get("process_name")
@@ -17,8 +16,6 @@ def add_projects(projects, app):
         numprocess = int(project.get("numprocess"))
         port = int(project.get("port"))
 
-        # 添加一个定时任务
-        app.tasks[program] = ProjectTask(program, 1000 * 5)
         if Template.exists(program=program):
             return dict(
                 msg="program:{0}已经存在".format(program),
@@ -28,13 +25,12 @@ def add_projects(projects, app):
         Template(**project)
 
         for i in range(numprocess):
-            Project(**{
-                "program": program,
-                "process_name": process_name.format(port=i),
-                "command": command.format(port=i + port),
-                "numprocess": numprocess,
-                "port": port
-            })
+            Project(
+                program=program,
+                process_name=process_name.format(port=i),
+                command=command.format(port=i + port),
+                port=i + port
+            )
 
     return dict(
         status="ok",
@@ -43,17 +39,8 @@ def add_projects(projects, app):
 
 
 @db_session
-def remove_projects(programs, app):
+def remove_projects(programs):
     try:
-
-        # 删除定时任务
-        for program in programs:
-            task = app.tasks.get(program, None)
-            if task:
-                if task.is_running():
-                    task.stop()
-
-                del app.tasks[program]
 
         delete(p for p in Template if p.program in programs)
         delete(p for p in Project if p.program in programs)
@@ -97,39 +84,24 @@ def get_projects(programs=None, fields=None, **kwargs):
 
 
 @db_session
-def update_project(app, program=None, **data):
+def update_project(program=None, **data):
     try:
 
-        # stop定时任务
-        task = app.tasks.get(program, None)
-        if task and task.is_running():
-            task.stop_at_once()
-
         Template[program].set(**data)
+
         delete(p for p in Project if p.program == program)
 
         process_name = data.get("process_name")
         command = data.get("command")
         numprocess = int(data.get("numprocess"))
         port = int(data.get("port"))
-        numretry = int(data.get("numretry"))
         for i in range(numprocess):
             Project(
                 program=program,
                 process_name=process_name.format(port=i),
                 command=command.format(port=i + port),
-                numprocess=numprocess,
-                port=port,
-                numretry=numretry,
+                port=i + port
             )
-
-        # 添加一个定时任务
-        task = app.tasks.get(program, None)
-        if task and not task.is_running():
-            task.start_at_once()
-        else:
-            app.tasks[program] = ProjectTask(program, 1000 * 5)
-            app.tasks[program].start_at_once()
 
         return dict(
             status="ok",

@@ -1,4 +1,5 @@
 # -*- coding:utf-8 -*-
+
 import os
 import socket
 import sys
@@ -98,10 +99,10 @@ def gen_fields(name, fields):
     return ",".join(["{0}.{1}".format(name, p) for p in fields])
 
 
-def singleton(cls, *args, **kw):
+def singleton(cls):
     instances = {}
 
-    def _singleton():
+    def _singleton(*args, **kw):
         if cls not in instances:
             instances[cls] = cls(*args, **kw)
         return instances[cls]

@@ -7,8 +7,8 @@ from signal import signal, SIGTERM, SIGINT, SIGQUIT
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop
 
-from jmonitor import JmonitorApplication
-from services import singleton, daemonize
+from gateway import JmonitorApplication
+from misc import singleton, daemonize
 
 reload(sys)
 sys.setdefaultencoding('utf-8')
@@ -49,7 +49,7 @@ class AppManager(object):
 
 def term_sig_handler(signum, frame):
     print 'catched singal: %d' % signum, frame
-    sys.exit()
+    sys.exit(0)
 
 
 @atexit.register

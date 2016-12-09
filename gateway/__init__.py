@@ -1,8 +1,8 @@
 # -*- coding:utf-8 -*-
 from tornado import web
 
-from jmonitor.settings import settings
-from urls import handlers
+from gateway.settings import settings
+from gateway.urls import handlers
 
 
 class JmonitorApplication(web.Application):
