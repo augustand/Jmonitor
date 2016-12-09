@@ -2,7 +2,10 @@
 
 import sys
 
-sys.path.append('../')
+from settings import ROOT_PATH
+
+sys.path.append(ROOT_PATH)
+
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
