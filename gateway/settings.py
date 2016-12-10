@@ -26,5 +26,7 @@ project = {
     "host": "localhost",
 }
 
+numretry = 3
+
 if __name__ == '__main__':
     pass

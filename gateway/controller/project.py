@@ -1,14 +1,79 @@
 # -*- coding:utf-8 -*-
-
-
+import functools
 import json
+import logging
 from os.path import join as pjoin
 
 import thriftpy
 from thriftpy.rpc import make_client
 from tornado import web
 
-from gateway.settings import protocols
+from gateway.settings import protocols, project
+
+logger = logging.getLogger()
+
+
+class ProjectClient(object):
+    def __init__(self):
+        self.project = make_client(
+            thriftpy.load(pjoin(protocols, "project.thrift"), module_name="project_thrift").ProjectHandle,
+            port=6000
+        )
+
+    def retry(self, numretry=3):
+        def _func(func):
+            @functools.wraps(func)
+            def __func(*args, **kwargs):
+                _numretry = numretry
+                while _numretry > 0:
+                    try:
+                        res = self.project.ping()
+                        if res == 'ok':
+                            logger.info('calling function: {}\n'.format(func.__name__))
+                            res1 = func(*args, **kwargs)
+                            logger.info('return value: {}\n'.format(res1))
+                            return res1
+                    except Exception, e:
+                        logger.error(e.message)
+
+                        self.project = make_client(
+                            thriftpy.load(pjoin(protocols, "project.thrift"),
+                                          module_name="project_thrift").ProjectHandle,
+                            port=project["port"]
+                        )
+                        _numretry -= 1
+                else:
+                    logger.error("had retried {} times, but still error".format(numretry))
+                    return
+
+            return __func
+
+        return _func
+
+    @retry(numretry=5)
+    def add_projects(self, data):
+        res = self.project.add_projects(data)
+        return res
+
+    @retry()
+    def remove_projects(self, data):
+        res = self.project.remove_projects(data)
+        return res
+
+    @retry()
+    def get_projects(self, data):
+        res = self.project.get_projects(data)
+        return res
+
+    @retry()
+    def update_project(self, data):
+        res = self.project.update_project(data)
+        return res
+
+    @retry()
+    def do_actions(self, data):
+        res = self.project.do_actions(data)
+        return res
 
 
 class ProjectsHandler(web.RequestHandler):

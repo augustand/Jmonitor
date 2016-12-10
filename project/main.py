@@ -1,6 +1,5 @@
 # -*- coding:utf-8 -*-
 
-
 import sys
 
 from settings import ROOT_PATH, protocols
@@ -10,21 +9,36 @@ sys.path.append(ROOT_PATH)
 reload(sys)
 sys.setdefaultencoding('utf-8')
 
-# sys.path.append('../')
-# sys.path.append('gen-py')
-# sys.path.insert(0, glob.glob('../../lib/py/build/lib*')[0])
+import atexit
+import argparse
+import traceback
+from signal import signal, SIGTERM, SIGINT, SIGQUIT
 
+
+def term_sig_handler(signum, frame):
+    print 'catched singal: %d' % signum, frame
+    sys.exit(0)
+
+
+@atexit.register
+def atexit_fun():
+    exc_type, exc_value, exc_tb = sys.exc_info()
+    traceback.print_exception(exc_type, exc_value, exc_tb)
 
 
 if __name__ == '__main__':
-
-    import argparse
+    signal(SIGTERM, term_sig_handler)
+    signal(SIGINT, term_sig_handler)
+    signal(SIGQUIT, term_sig_handler)
 
     parser = argparse.ArgumentParser(description='project service')
     parser.add_argument('-p', action="store", default=6000, type=int, dest='port', help='project port default 6000')
     parser.add_argument('-debug', action="store", default=True, type=bool, dest='debug', help='debug default true')
     parser.add_argument('-daemon', action="store", default=False, type=bool, dest='daemon', help='daemon default false')
     p = parser.parse_args()
+
+    if p.debug:
+        print p
 
     if p.daemon:
         from misc import daemonize

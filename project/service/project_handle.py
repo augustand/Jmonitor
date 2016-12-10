@@ -156,6 +156,9 @@ class ProjectHandle(object):
             msg=action
         ))
 
+    def ping(self):
+        return "ok"
+
 
 if __name__ == '__main__':
     pass
