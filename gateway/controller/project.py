@@ -120,6 +120,8 @@ class ProjectsHandler(web.RequestHandler):
         programs = [] if not programs else programs.split(";")
         fields = self.get_argument("fields", [])
 
+
+
         if __debug__:
             print programs, fields
 
